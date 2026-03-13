@@ -25,7 +25,7 @@ character(len=*) :: group,vr,cc
 real :: ff
 integer :: ii,nv
 integer :: inrflg
-integer, parameter ::nvgrid=38,nvstrt=77,nvindat=152,nvsound=13
+integer, parameter ::nvgrid=38,nvstrt=78,nvindat=152,nvsound=13
 integer ::  igrids(nvgrid),istart(nvstrt),iindat(nvindat),isound(nvsound)
 character(len=16) :: grids(nvgrid),start(nvstrt),indat(nvindat),sound(nvsound)
 data igrids/nvgrid*0/,istart/nvstrt*0/,iindat/nvindat*0/,isound/nvsound*0/
@@ -48,7 +48,7 @@ DATA START/  &
      ,'RODA_UPA0','RODA_HGT','RODA_ZFAC','ODA_SFC_TIL','ODA_SFC_TEL'     &
      ,'ODA_UPA_TIL','ODA_UPA_TEL','HFILIN','IPAST_SFC','ICLOBBER'        &
      ,'IOUTPUT','AFILEPREF','FRQSTATE','FRQST_KEEP','FRQLITE'            &
-     ,'NLITE_VARS','LITE_VARS','AVGTIM','FRQMEAN','FRQBOTH','TOPFILES'   &
+     ,'NLITE_VARS','LITE_VARS','ACC_LT_VAR','AVGTIM','FRQMEAN','FRQBOTH','TOPFILES'   &
      ,'SFCFILES','SSTFPFX','NDVIFPFX','ITOPTFLG','ISSTFLG','IVEGTFLG'    &
      ,'ISOILFLG','NDVIFLG','IUPDNDVI','IUPDSST','ITOPTFN'                &
      ,'ISSTFN','IVEGTFN','ISOILFN','NDVIFN','ITOPSFLG','TOPTENH'         &
