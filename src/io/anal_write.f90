@@ -37,6 +37,9 @@ integer :: iphdf5
 type (hdf5_select_type) :: mem_select,file_select
 integer, dimension(HDF5_MAX_DIMS) :: file_chunks
 real, dimension(:,:,:,:), allocatable :: temp_var1, temp_var2
+! Holding variable for ZFP accuracy. This will be 0 for all but lite files, where 
+! it is user set. If it is 0, that means to not run ZFP/lossy compression. 
+real :: zfp_accuracy
 
 type (head_table), allocatable,save :: aw_table(:)
 
@@ -139,17 +142,21 @@ do ngr=1,ngrids
       iwrite=0
       if(vtype == 'INST' .and. vtab_r(nv,ngr)%ianal == 1) then
          iwrite=1
+         zfp_accuracy = 0
          v_pointer => vtab_r(nv,ngr)%var_p
       elseif(vtype == 'LITE' .and. vtab_r(nv,ngr)%ilite == 1) then
          iwrite=1
+         zfp_accuracy = vtab_r(nv,ngr)%var_acc
          v_pointer => vtab_r(nv,ngr)%var_p
       elseif(vtype == 'MEAN' .and. vtab_r(nv,ngr)%imean == 1 .and. &
                                    vtab_r(nv,ngr)%ianal == 1) then
          iwrite=1
+          zfp_accuracy = 0
          v_pointer => vtab_r(nv,ngr)%var_m
       elseif(vtype == 'BOTH' .and. vtab_r(nv,ngr)%ilite == 1 .and. &
                                    vtab_r(nv,ngr)%imean == 1) then
          iwrite=1
+          zfp_accuracy = 0
          v_pointer => vtab_r(nv,ngr)%var_m
       endif
 
@@ -241,32 +248,8 @@ do ngr=1,ngrids
          CALL shdf5_set_hs_select (vtab_r(nv,ngr)%idim_type,'W',ngr &
                 ,mem_select,file_select,file_chunks)
          
-                ! GRL 2024-05-28 Added Steve's truncation code
-
-         !For LITE files, call data truncation routines to round to user-chosen decimal
-         !places, which allows for much better data compression. We can do this on LITE
-         !file if we do not need super-precision on some variables. Cannot do this on
-         !INST analysis files since we need full precision for history restarts.
-         !Set the actual precision you need in the subroutines called here like
-         !(e.g. "trunc_3d_vars)
-         if(vtype=='LITE')then
-            !Call this subroutine for 3D z,y,x variables
-            if(vtab_r(nv,ngr)%idim_type==3)then !mzp,mxp,myp
-               CALL trunc_3d_vars (varn,mmzp(ngr),mmxp(ngr),mmyp(ngr),temp_var1)
-            elseif(vtab_r(nv,ngr)%idim_type==2)then !mxp,myp
-               CALL trunc_2d_vars (varn,mmxp(ngr),mmyp(ngr),temp_var1)
-            elseif(vtab_r(nv,ngr)%idim_type==6)then !mxp,myp,npatch
-               CALL trunc_3d_leaf_vars (varn,mmxp(ngr),mmyp(ngr),npatch,temp_var1)
-            elseif(vtab_r(nv,ngr)%idim_type==4)then !nzg,mxp,myp,npatch
-               CALL trunc_4d_vars (varn,nzg,mmxp(ngr),mmyp(ngr),npatch,temp_var1)
-            
-            endif
-         !print*,'smslite',nv,' ',vtype,' ',trim(varn),vtab_r(nv,ngr)%idim_type &
-         !      ,maxval(temp_var1)
-         endif
-
          CALL shdf5_orec (h5_fid,iphdf5,varn &
-                ,mem_select,file_select,file_chunks,rvara=temp_var1)
+                ,mem_select,file_select,file_chunks,zfp_accuracy,rvara=temp_var1)
          !print*,'done all ',vtype,' ',trim(varn)
 
          deallocate(temp_var1)
@@ -391,31 +374,8 @@ do ngr=1,ngrids
 
          CALL shdf5_set_hs_select (idtype,'W',ngr &
                  ,mem_select,file_select,file_chunks)
-
-         ! GRL 2024-05-28 Added Steve's truncation code
-
-         !For LITE files, call data truncation routines to round to user-chosen decimal
-         !places, which allows for much better data compression. We can do this on LITE
-         !file if we do not need super-precision on some variables. Cannot do this on
-         !INST analysis files since we need full precision for history restarts.
-         !Set the actual precision you need in the subroutines called here like
-         !(e.g. "trunc_3d_vars)
-         if(vtype=='LITE')then
-            !Call this subroutine for 3D z,y,x variables
-            if(vtab_r(nv,ngr)%idim_type==3)then !mzp,mxp,myp
-               CALL trunc_3d_vars (varn,mmzp(ngr),mmxp(ngr),mmyp(ngr),temp_var2)
-            elseif(vtab_r(nv,ngr)%idim_type==2)then !mxp,myp
-               CALL trunc_2d_vars (varn,mmxp(ngr),mmyp(ngr),temp_var2)
-            elseif(vtab_r(nv,ngr)%idim_type==6)then !mxp,myp,npatch
-               CALL trunc_3d_leaf_vars (varn,mmxp(ngr),mmyp(ngr),npatch,temp_var2)
-            elseif(vtab_r(nv,ngr)%idim_type==4)then !nzg,mxp,myp,npatch
-               CALL trunc_4d_vars (varn,nzg,mmxp(ngr),mmyp(ngr),npatch,temp_var2)
-            endif
-            !print*,'smslite',nv,' ',vtype,' ',trim(varn),vtab_r(nv,ngr)%idim_type &
-            !      ,maxval(temp_var1)
-         endif
          CALL shdf5_orec (h5_fid,iphdf5,varn &
-                 ,mem_select,file_select,file_chunks,rvara=temp_var2)
+                 ,mem_select,file_select,file_chunks, zfp_accuracy,rvara=temp_var2)
          !print*,'done xtra ',vtype,' ',trim(varn)
 
       endif
