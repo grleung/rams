@@ -98,9 +98,13 @@ ngr = ngrid
 
 !Zero out the radiative heating rate "fthrd" if this this a radiation timestep
 !and if running Harrington Radiation as called below with microphysics loop.
+! GRL 2024-08-28 Note that we are not zeroing out fthrd, fthrdlw, fthrdsw for SW/LWtype=5 (RTE), but this should be okay because these are zeroed 
+! out and calculated different in radcalc5
 if (iswrtyp .eq. 3 .or. ilwrtyp .eq. 3 .or. iswrtyp .eq. 4 .or. ilwrtyp .eq. 4) then
   if (mod(time + .001,radfrq) .lt. dtlt .or. time .lt. .001) then
     CALL azero (mzp*mxp*myp,radiate_g(ngrid)%fthrd(1,1,1))
+    CALL azero (mzp*mxp*myp,radiate_g(ngrid)%fthrdlw(1,1,1))
+    CALL azero (mzp*mxp*myp,radiate_g(ngrid)%fthrdsw(1,1,1))
   endif
 endif
 
@@ -283,10 +287,13 @@ if (mod(time + .001,radfrq) .lt. dtlt .or. time .lt. .001) then
          ,radiate%albedt (i,j)    &
          ,radiate%cosz   (i,j)    &
          ,radiate%rlongup(i,j)    &
+         ,radiate%rlontop(i,j)    &
          ,radiate%rshort (i,j)    &
          ,radiate%rlong  (i,j)    &
          ,radiate%aodt   (i,j)    &
          ,radiate%fthrd(1,i,j)    &
+         ,radiate%fthrdlw(1,i,j)    &
+         ,radiate%fthrdsw(1,i,j)    & !GRL 2024-03-22 added lw and sw heating rates
          ,radiate%bext (1,i,j)    &
          ,radiate%swup (1,i,j)    &
          ,radiate%swdn (1,i,j)    &
@@ -298,8 +305,8 @@ if (mod(time + .001,radfrq) .lt. dtlt .or. time .lt. .001) then
       CALL radcalc4 (m1,maxnzp,7,iswrtyp,ilwrtyp  &
          ,glat,rtgt,topt  &
          ,radiate%albedt  (i,j) ,radiate%cosz  (i,j)  &
-         ,radiate%rlongup (i,j) ,radiate%rshort(i,j)  &
-         ,radiate%rlong   (i,j)  &
+         ,radiate%rlongup (i,j), radiate%rlontop(i,j) &
+         ,radiate%rshort(i,j)  ,radiate%rlong   (i,j)  &
          ,zm,zt,rv(1),dn0(1),pi0(1),pp(1),radiate%fthrd(1,i,j),i,j,ngr &
          ,radiate%bext(1,i,j),radiate%swup(1,i,j),radiate%swdn(1,i,j) &
          ,radiate%lwup(1,i,j),radiate%lwdn(1,i,j))
@@ -307,9 +314,11 @@ if (mod(time + .001,radfrq) .lt. dtlt .or. time .lt. .001) then
       CALL radcalc5 (m1,maxnzp,iswrtyp,ilwrtyp  &
          ,glat,rtgt,topt  &
          ,radiate%albedt  (i,j) ,radiate%cosz  (i,j)  &
-         ,radiate%rlongup (i,j) ,radiate%rshort(i,j)  &
-         ,radiate%rlong   (i,j) ,radiate%aodt  (i,j)  &
-         ,zm,zt,rv(1),dn0(1),pi0(1),pp(1),radiate%fthrd(1,i,j),i,j,ngr &
+         ,radiate%rlongup (i,j) ,radiate%rlontop(i,j)    &
+         ,radiate%rshort(i,j) ,radiate%rlong   (i,j) &
+         ,radiate%aodt  (i,j)  &
+         ,zm,zt,rv(1),dn0(1),pi0(1),pp(1),radiate%fthrd(1,i,j) &
+         ,radiate%fthrdlw(1,i,j),radiate%fthrdsw(1,i,j),i,j,ngr & !GRL 2024-03-22 added lw and sw heating rates
          ,radiate%bext(1,i,j),radiate%swup(1,i,j),radiate%swdn(1,i,j) &
          ,radiate%lwup(1,i,j),radiate%lwdn(1,i,j))
    endif

@@ -159,6 +159,9 @@ if (mod(time + .001,radfrq) .lt. dtlt .or. time .lt. 0.001) then
            ! Zero out the radiative heating rate "fthrd" if this this a 
            ! radiation timestep and fthrd will be updated.
            CALL azero (mzp*mxp*myp,radiate_g(ngrid)%fthrd(1,1,1))
+           CALL azero (mzp*mxp*myp,radiate_g(ngrid)%fthrdlw(1,1,1))
+           CALL azero (mzp*mxp*myp,radiate_g(ngrid)%fthrdsw(1,1,1))
+
            ! Run the Harrington radiation for non-LEVEL=3 micro
            CALL radcomp3 (mzp,mxp,myp,ia,iz,ja,jz  &
             ,grid_g(ngrid)%glat       (1,1)    &
@@ -167,12 +170,15 @@ if (mod(time + .001,radfrq) .lt. dtlt .or. time .lt. 0.001) then
             ,radiate_g(ngrid)%albedt  (1,1)    &
             ,radiate_g(ngrid)%cosz    (1,1)    &
             ,radiate_g(ngrid)%rlongup (1,1)    &
+            ,radiate_g(ngrid)%rlontop (1,1)    &
             ,radiate_g(ngrid)%rshort  (1,1)    &
             ,radiate_g(ngrid)%rlong   (1,1)    &
             ,radiate_g(ngrid)%aodt    (1,1)    &
             ,basic_g(ngrid)%rv        (1,1,1)  &
             ,basic_g(ngrid)%dn0       (1,1,1)  &
             ,radiate_g(ngrid)%fthrd   (1,1,1)  &
+            ,radiate_g(ngrid)%fthrdlw   (1,1,1)  &
+            ,radiate_g(ngrid)%fthrdsw   (1,1,1)  &
             ,basic_g(ngrid)%pi0       (1,1,1)  &
             ,basic_g(ngrid)%pp        (1,1,1)  &
             ,basic_g(ngrid)%theta     (1,1,1)  &
@@ -479,8 +485,8 @@ END SUBROUTINE radcomp
 
 !##############################################################################
 Subroutine radcomp3 (m1,m2,m3,ia,iz,ja,jz  &
-   ,glat,rtgt,topt,albedt,cosz,rlongup,rshort,rlong,aodt  &
-   ,rv,dn0,fthrd,pi0,pp,theta,rcp &
+   ,glat,rtgt,topt,albedt,cosz,rlongup,rlontop,rshort,rlong,aodt  &
+   ,rv,dn0,fthrd,fthrdlw,fthrdsw,pi0,pp,theta,rcp &
    ,bext,swup,swdn,lwup,lwdn &
    ,cn1np,cn1mp,cn2np,cn2mp,md1np,md1mp,md2np,md2mp &
    ,salt_film_np,salt_film_mp,salt_jet_np,salt_jet_mp &
@@ -499,8 +505,8 @@ implicit none
 integer :: m1,m2,m3,ia,iz,ja,jz,mcat,i,j,k,kk,k0
 
 real :: cfmasi,cparmi,glg,glgm,picpi
-real, dimension(m2,m3) :: glat,rtgt,topt,cosz,albedt,rlongup,rshort,rlong,aodt
-real, dimension(m1,m2,m3) :: dn0,rv,fthrd,pi0,pp,theta,rcp
+real, dimension(m2,m3) :: glat,rtgt,topt,cosz,albedt,rlongup,rlontop,rshort,rlong,aodt
+real, dimension(m1,m2,m3) :: dn0,rv,fthrd,fthrdlw,fthrdsw,pi0,pp,theta,rcp
 real, dimension(m1,m2,m3) :: bext,swup,swdn,lwup,lwdn
 real, dimension(m1,m2,m3) :: cn1np,cn1mp,cn2np,cn2mp,md1np,md1mp,md2np,md2mp &
   ,salt_film_np,salt_film_mp,salt_jet_np,salt_jet_mp,salt_spum_np,salt_spum_mp &
@@ -573,10 +579,13 @@ do j = ja,jz
             ,albedt(i,j)          &
             ,cosz(i,j)            &
             ,rlongup(i,j)         &
+            ,rlontop(i,j)         &
             ,rshort(i,j)          &
             ,rlong(i,j)           &
             ,aodt(i,j)            &
             ,fthrd(1,i,j)         &
+            ,fthrdlw(1,i,j)         &
+            ,fthrdsw(1,i,j)         &
             ,bext(1,i,j)          &
             ,swup(1,i,j)          &
             ,swdn(1,i,j)          &
@@ -680,8 +689,8 @@ END SUBROUTINE zen
 
 !##############################################################################
 Subroutine radcalc3 (m1,i,j,ngrid,maxnzp,mcat,iswrtyp,ilwrtyp,zm,zt &
-   ,glat,rtgt,topt,rv,albedt,cosz,rlongup,rshort,rlong,aodt &
-   ,fthrd,bext,swup,swdn,lwup,lwdn &
+   ,glat,rtgt,topt,rv,albedt,cosz,rlongup,rlontop,rshort,rlong,aodt &
+   ,fthrd,fthrdlw,fthrdsw,bext,swup,swdn,lwup,lwdn &
    ,dn0 &
    )
 
@@ -736,6 +745,7 @@ Subroutine radcalc3 (m1,i,j,ngrid,maxnzp,mcat,iswrtyp,ilwrtyp,zm,zt &
 !  albedt           : surface albedo
 !  cosz             : solar zenith angle
 !  rlongup          : upward longwave radiation at surface (W/m^2)
+!  rlontop          : upward longwave at top radiation level (W/m^2)
 !  rshort           : downward shortwave radiation at surface (W/m^2)
 !  rlong            : downward longwave radiation at surface (W/m^2)
 !  aodt             : total aerosol optical depth (band=3)
@@ -763,7 +773,7 @@ Subroutine radcalc3 (m1,i,j,ngrid,maxnzp,mcat,iswrtyp,ilwrtyp,zm,zt &
 !  dl (nrad)        : air density of all radiation levels (kg/m^3)
 !  rl (nrad)        : vapor density of all radiation levels (kg/m^3)
 !  vp (nrad)        : vapor pressure (Pa)
-!  o3l (nrad)       : stores the calculated ozone profile (g/m^3)
+!  o3l (nrad)       : stores the calculated ozone profile (g/m^3) !GRL pretty sure this is also kg/m3 from values
 !  flxu (nrad)      : Total upwelling flux (W/m^2)
 !  flxd (nrad)      : Total downwelling flux (W/m^2)
 !  t (nrad)         : layer transmission func
@@ -864,8 +874,8 @@ integer, save :: ngass(mg)=(/1, 1, 1/),ngast(mg)=(/1, 1, 1/)
 !       ngas(3) =  O3
 
 real, save :: eps=1.e-15
-real :: glat,rtgt,topt,cosz,albedt,rlongup,rshort,rlong,aodt
-real :: zm(m1),zt(m1),dn0(m1),rv(m1),fthrd(m1)
+real :: glat,rtgt,topt,cosz,albedt,rlongup,rlontop,rshort,rlong,aodt
+real :: zm(m1),zt(m1),dn0(m1),rv(m1),fthrd(m1),fthrdsw(m1),fthrdlw(m1)
 real :: bext(m1),swup(m1),swdn(m1),lwup(m1),lwdn(m1)
 
 real, allocatable, save, dimension(:)     :: zml,ztl,dzl,pl,tl,dl,rl,o3l  &
@@ -964,9 +974,9 @@ if (iswrtyp == 3 .and. cosz > 0.03) then
    do k = 2,m1-1
       exner(k) = (press(k)*p00i)**rocp
       !divide by exner to get potential temp heating rate
-      fthrd(k) = fthrd(k)  &
-         + (flxds(k) - flxds(k-1) + flxus(k-1) - flxus(k)) &
+      fthrdsw(k) = (flxds(k) - flxds(k-1) + flxus(k-1) - flxus(k)) &
             / (dl(k) * dzl(k) * cp * exner(k))
+      fthrd(k) = fthrd(k) + fthrdsw(k)
       swup(k) = flxus(k)
       swdn(k) = flxds(k)
     enddo
@@ -998,15 +1008,19 @@ if (ilwrtyp == 3) then
    !Set rlong to surface level downward longwave flux.
    rlong = flxdl(1)
 
+   ! Save upwelling longwave radiation (OLR) at top radiation level
+   rlontop = flxul(nrad)
+
+
    !Make lowest level upward longwave flux equal to rlongup
    !produced from land surface models (LEAF,SiB).
    flxul(1) = rlongup
 
    do k = 2,m1-1
       !divide by exner to get potential temp heating rate
-      fthrd(k) = fthrd(k)  &
-         + (flxdl(k) - flxdl(k-1) + flxul(k-1) - flxul(k)) &
+      fthrdlw(k) = (flxdl(k) - flxdl(k-1) + flxul(k-1) - flxul(k)) &
             / (dl(k) * dzl(k) * cp * exner(k))
+      fthrd(k) = fthrd(k) +fthrdlw(k)
       lwup(k) = flxul(k)
       lwdn(k) = flxdl(k)
    enddo
@@ -1408,7 +1422,7 @@ return
 END SUBROUTINE cloud_prep_lev4
 !##############################################################################
 Subroutine radcalc4 (m1,maxnzp,mcat,iswrtyp,ilwrtyp  &
-   ,glat,rtgt,topt,albedt,cosz,rlongup,rshort,rlong  &
+   ,glat,rtgt,topt,albedt,cosz,rlongup,rlontop,rshort,rlong  &
    ,zm,zt,rv,dn0,pi0,pp,fthrd,i,j,ngrid &
    ,bext,swup,swdn,lwup,lwdn)
 
@@ -1438,7 +1452,7 @@ integer, save :: ngass(mg)=(/1, 1, 1/),ngast(mg)=(/1, 1, 1/)
 
 real, save :: eps=1.e-15
 real :: prsnz,prsnzp
-real :: glat,rtgt,topt,cosz,albedt,rlongup,rshort,rlong
+real :: glat,rtgt,topt,cosz,albedt,rlongup,rlontop,rshort,rlong
 real :: zm(m1),zt(m1),dn0(m1),rv(m1),pi0(m1),pp(m1),fthrd(m1)
 real :: bext(m1),swup(m1),swdn(m1),lwup(m1),lwdn(m1)
 
@@ -1515,6 +1529,8 @@ rshort = flxds(1)
 
 rlong = flxdl(1)
 
+rlontop = flxul(nrad)
+
 !not integrated with BUGSrad yet. just diagnostic anyway
 bext(:)=0.
 
@@ -1522,8 +1538,8 @@ return
 END SUBROUTINE radcalc4
 !##############################################################################
 Subroutine radcalc5 (m1,maxnzp,iswrtyp,ilwrtyp  &
-   ,glat,rtgt,topt,albedt,cosz,rlongup,rshort,rlong,aodt  &
-   ,zm,zt,rv,dn0,pi0,pp,fthrd,i,j,ngrid &
+   ,glat,rtgt,topt,albedt,cosz,rlongup,rlontop,rshort,rlong,aodt  &
+   ,zm,zt,rv,dn0,pi0,pp,fthrd,fthrdlw,fthrdsw,i,j,ngrid &
    ,bext,swup,swdn,lwup,lwdn)
 
 ! RTE+RRTMGP radiation
@@ -1542,8 +1558,8 @@ integer :: iswrtyp,ilwrtyp
 integer i,j,k,ii,printsound
 integer, save :: ncall = 0,nradmax
 
-real :: glat,rtgt,topt,cosz,albedt,rlongup,rshort,rlong,aodt
-real :: zm(m1),zt(m1),dn0(m1),rv(m1),pi0(m1),pp(m1),fthrd(m1)
+real :: glat,rtgt,topt,cosz,albedt,rlongup,rlontop,rshort,rlong,aodt
+real :: zm(m1),zt(m1),dn0(m1),rv(m1),pi0(m1),pp(m1),fthrd(m1),fthrdlw(m1),fthrdsw(m1)
 real :: bext(m1),swup(m1),swdn(m1),lwup(m1),lwdn(m1)
 
 real, allocatable, save, dimension(:) :: zml,ztl,dzl,pl,tl,dl,rl,o3l  &
@@ -1729,11 +1745,18 @@ do k = 2,m1
    exner(k) = (pi0(k)+pp(k))/cp
    !divide by exner to get potential temp heating rate
    fthrd(k) = (fthsw(k)+fthlw(k))/exner(k)
+
+   !GRL 2024-03-22 added lw and sw heating rates
+   fthrdlw(k) = fthlw(k)/exner(k)
+   fthrdsw(k) = fthsw(k)/exner(k)
 enddo
 
 rshort = flxds(1)
 
 rlong = flxdl(1)
+
+rlontop = flxul(nrad)
+
 
 !not integrated with RTE+RRTMGP yet. just diagnostic anyway
 bext(:)=0.

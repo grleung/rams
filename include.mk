@@ -20,7 +20,7 @@ MAKE=/usr/bin/make
 #############################################################################
 # Set your RAMS root path and version number.
 #############################################################################
-RAMS_ROOT=/home/smsaleeb/rams_git_dev
+RAMS_ROOT=/home/gleung/rams-default
 RAMS_VERSION=6.3.04
 
 #############################################################################
@@ -29,21 +29,19 @@ RAMS_VERSION=6.3.04
 # Typically can use "parallel" for either, but some supercomputers require
 # use of the serial executable.
 #############################################################################
-HDF5_ROOT=
-#/share/apps/hdf5-1.10.1/intel
-
+HDF5_ROOT?=$(HDF5_ROOT)
+H5Z_ZFP_ROOT?=$(H5Z_ZFP_ROOT)
 #############################################################################
 # Set root locations for parallel processing MPI software.
 # You can comment out MPI_ROOT for serial processing compile.
 #############################################################################
-#MPI_ROOT=/share/apps/openmpi-3.1.2/intel-2019
-MPI_ROOT=/share/apps/22.04/openmpi/4.1.5
+MPI_ROOT?=$(MPI_ROOT)
 
 #############################################################################
 # RTE+RRTMGP requires netcdf
 #############################################################################
-#NETCDF_FORTRAN_ROOT=
-#NETCDF_C_ROOT=
+NETCDF_FORTRAN_ROOT ?= $(NETCDF_FORTRAN_ROOT)
+NETCDF_C_ROOT       ?= $(NETCDF_C_ROOT)
 
 #############################################################################
 # Do not change these 2. They point from RAMS_ROOT to the source code.
@@ -62,11 +60,8 @@ UTILS_INCS=-I$(MODEL)/include
 #HDF5_LIBS=-L$(HDF5_ROOT)/lib -lhdf5_hl -lhdf5 \
 #  -Wl,-rpath,/home/smsaleeb/software/szip-2.1/lib \
 #  -Wl,-rpath,/home/smsaleeb/software/zlib-1.2.5/lib
-#HDF5_LIBS=-L$(HDF5_ROOT)/lib -lhdf5_hl -lhdf5
-#HDF5_INCS=-I$(HDF5_ROOT)/include
-#HDF5_DEFS=
-HDF5_LIBS= -lhdf5_hl -lhdf5
-HDF5_INCS=
+HDF5_LIBS= -L$(HDF5_ROOT)/lib -L$(HDF5_ROOT)/lib64 -lhdf5_hl -lhdf5 -L$(H5Z_ZFP_ROOT)/lib -lh5zzfp -lzfp
+HDF5_INCS=-I$(HDF5_ROOT)/include -I$(H5Z_ZFP_ROOT)/include 
 HDF5_DEFS=
 
 #############################################################################
@@ -97,60 +92,17 @@ CMACH=PC_LINUX1  #Standard Linux (only option available now)
 #   where the need for such libraries will be indicated by error messages
 #   when compiling the code.
 
-#*****************************
-# FORTRAN INTEL IFORT COMPILER Single Precision
-#*****************************
-# (-g) for debugging, (-traceback) for more compiler error info
-# (-check bounds) for array bounds checking, (-fp-model precise) for IEEE
-# (-check uninit) for finding uninitialized variables, (-free) for free format
-#F_COMP=/home/smsaleeb/intel/composer_xe_2011_sp1.8.273/bin/intel64/ifort
-F_COMP=/home/smsaleeb/software/mpich-3.3.2/bin/mpif90
-F_OPTS1=-free -O1 -fp-model precise
-F_OPTS2=-free -O2 -fp-model precise
-LOADER_OPTS= -free -O2 -fp-model precise
-LIBS=-L/usr/lib/x86_64-linux-gnu -lrt -lpthread -lsz -lz
+F_COMP=mpif90
+F_BASE      = -fallow-argument-mismatch -ffree-form -fno-sign-zero -march=native -DLZFP
+F_OPTS1     = $(F_BASE) -O1
+F_OPTS2     = $(F_BASE) -O2
+F_OPTS3     = $(F_BASE) -O3
+LOADER_OPTS = $(F_BASE) -O2
 
-#*****************************
-# FORTRAN INTEL IFORT COMPILER Double Precision
-#*****************************
-# (-g) for debugging, (-traceback) for more compiler error info
-# (-check bounds) for array bounds checking, (-fp-model precise) for IEEE
-# (-check uninit) for finding uninitialized variables, (-free) for free format
-#F_COMP=/home/smsaleeb/intel/composer_xe_2011_sp1.8.273/bin/intel64/ifort
-#F_OPTS1=-free -O1 -fp-model precise -real-size 64
-#F_OPTS2=-free -O2 -fp-model precise -real-size 64
-#LOADER_OPTS= -free -O2 -fp-model precise -real-size 64
-#LIBS=-L/usr/lib/x86_64-linux-gnu -lrt -lpthread -lz -lsz
-
-#*****************************
-# FORTRAN PGI PGF90 COMPILER
-#*****************************
-# (-g) for debugging, (-Kieee) for IEEE, (-Mfree) for free format
-#F_COMP=/opt/pgi/linux86-64/19.4/bin/pgf90
-#F_OPTS1=-Mfree -O1 -Kieee
-#F_OPTS2=-Mfree -O2 -Kieee
-#LOADER_OPTS=-Mfree -O2 -Kieee
-#LIBS=-L/usr/lib/x86_64-linux-gnu -lrt -lpthread -lz -lsz
-
-#*****************************
-# FORTRAN GFORTRAN COMPILER
-# This compiler is not recommended and make not work as is. Gfortran seems
-# to be less intuitive about certain code compared to PGF90 and IFORT.
-#*****************************
-# (-Wall) for warnings, (-ffree-form) for free format
-# (-fno-sign-zero) for not making zeros negative values
-# (-fcheck=bounds) check for array bounds issues
-# (-fcheck=all) all runtime checking
-F_COMP=gfortran
-F_OPTS1=-fallow-argument-mismatch -ffree-form -O1 
-F_OPTS2=-fallow-argument-mismatch -ffree-form -O2
-F_OPTS3=-fallow-argument-mismatch -ffree-form -O3
-#F_OPTS1=-fallow-argument-mismatch -ffree-form -O1 -fbacktrace
-#F_OPTS2=-fallow-argument-mismatch -ffree-form -O2 -fbacktrace
-#F_OPTS3=-fallow-argument-mismatch -ffree-form -O3 -fbacktrace
-#Use F_OPTS3 for RTE+RRTMGP. See Makefiles in src/version/radiate/rte-rrtmgp
-LOADER_OPTS=-ffree-form -O2
-LIBS=-L/usr/lib/x86_64-linux-gnu -lrt -lpthread -lz -lsz
+LIBS        = -L/opt/spack-envs/rams-default/view/lib64 -L/opt/spack-envs/rams-default/view/lib \
+       -Wl,-rpath,/opt/spack-envs/rams-default/view/lib64 \
+       -Wl,-rpath,/opt/spack-envs/rams-default/view/lib \
+       -lnetcdff -lnetcdf -lrt -lpthread -lz -lsz
 
 #############################################################################
 # C compiler choice and flags (gcc) and (mpicc) are most common
@@ -172,11 +124,9 @@ LIBS=-L/usr/lib/x86_64-linux-gnu -lrt -lpthread -lz -lsz
 # that are not really as issue for us, but you can turn warnings back on by
 # removing the "-w" if you wish to alter code to eliminate warnings.
 #############################################################################
-#C_COMP=gcc
-C_COMP=/home/smsaleeb/software/mpich-3.3.2/bin/mpicc
-C_OPTS=-O3 -DUNDERSCORE -DLITTLE -std=gnu99 -DENABLE_PARALLEL_COMPRESSION -w
-#C_OPTS=-O3 -DUNDERSCORE -DLITTLE -std=gnu99 -DRAMS_DOUBLE_PREC \
-#  -DENABLE_PARALLEL_COMPRESSION -w
+C_COMP=mpicc
+C_OPTS=-O3 -DUNDERSCORE -DLITTLE -std=gnu99 -DENABLE_PARALLEL_COMPRESSION -DENABLE_ZFP_COMPRESSION -w
+#-DRAMS_DOUBLE_PREC \
 
 #############################################################################
 # System archive command syntax
@@ -197,6 +147,5 @@ ARCH=ar rsU
 # Comment out these "PAR_" lines for serial processing compile.
 #############################################################################
 PAR_INCS=-I$(MPI_ROOT)/include
-#PAR_LIBS=-L$(MPI_ROOT)/lib -lmpich -lmpl
-PAR_LIBS=-L$(MPI_ROOT)/lib
+PAR_LIBS=-L$(MPI_ROOT)/lib -L$(MPI_ROOT)/lib64 -lmpi
 PAR_DEFS=-DRAMS_MPI
