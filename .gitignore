@@ -1,5 +1,3 @@
-include.mk
-
 # ignore RAMS Output files
 *.h5
 
