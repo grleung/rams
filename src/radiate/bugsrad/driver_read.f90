@@ -144,7 +144,7 @@
       alvdf = alvdr
       alndf = alvdr
 
-      umco2=400.
+      umco2=420.
       umch4=0. !Methane
       umn2o=0. !N2O
       fdsw=0.

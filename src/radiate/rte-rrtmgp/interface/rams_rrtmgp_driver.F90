@@ -35,7 +35,7 @@ subroutine rte_rrtmgp_init()
   call stop_on_err(gas_concs%set_vmr('ch4', 0.0))
   call stop_on_err(gas_concs%set_vmr('n2o', 0.0))
   call stop_on_err(gas_concs%set_vmr('o2 ', 0.209))
-  call stop_on_err(gas_concs%set_vmr('co2', 400.e-6))
+  call stop_on_err(gas_concs%set_vmr('co2', 420.e-6))
 
   filename = trim(hucmfile)//'/../RTE-RRTMGP/rrtmgp-data-lw-g128-210809.nc'
   call load_and_init(k_dist_lw, filename, gas_concs)

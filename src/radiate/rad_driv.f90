@@ -1260,6 +1260,7 @@ END SUBROUTINE sum_opt
 Subroutine path_lengths (nrad,u,rl,dzl,dl,o3l,vp,pl,eps)
 
 ! Get the path lengths for the various gases...
+! GRL 2024-03-14: Converting from mass path length to pressure path length 
 
 implicit none
 
@@ -1269,8 +1270,16 @@ real, dimension(nrad,3) :: u
 real :: rvk0,rvk1,dzl9,rmix,eps
 integer :: k
 
+! water vapor
 u(1,1) = .5 * (rl(2) + rl(1)) * 9.81 * dzl(1)
-u(1,2) = .5 * (dl(2) + dl(1)) * .45575e-3 * 9.81 * dzl(1)
+
+! carbon dioxide
+! GRL edited CO2 concentration to be 420ppm 2024-08-27
+! constant value before 9.81 (g) is CO2(parts per million)/(1,000,000) * (M_co2/M_d)
+! where M_co2/M_d is ratio of molar mass CO2 to dry air = 44.01/28.964= 1.519472
+u(1,2) = .5 * (dl(2) + dl(1)) * .6382e-3 * 9.81 * dzl(1)
+
+! ozone
 u(1,3) = o3l(1) * 9.81 * dzl(1)
 
 rvk0 = rl(1)
@@ -1280,8 +1289,9 @@ do k = 2,nrad
    rmix = rvk1 / dl(k)
    vp(k) = pl(k) * rmix / (.622 + rmix)
    u(k,1) = (rvk1 - rvk0) / (log(rvk1 / rvk0) + eps) * dzl9
+   !GRL edited CO2 profile 2024-08-27
    u(k,2) = (dl(k) - dl(k-1)) / (log(dl(k) / dl(k-1)) + eps)  &
-       * dzl9 * 0.45575e-3
+         * dzl9 * 0.6283e-3
    u(k,3) = 0.5 * dzl9 * (o3l(k) + o3l(k-1))
    rvk0 = rvk1
 enddo
