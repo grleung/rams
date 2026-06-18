@@ -48,14 +48,14 @@ implicit none
                          allocate (radiate%fthrdsw(n1,n2,n3))
                          allocate (radiate%fthrdlw(n1,n2,n3))
       endif
-      if(ilwrtyp >= 3 .or. iswrtyp >= 3) then
+      if(ilwrtyp == 3 .or. iswrtyp == 3) then
          allocate (radiate%bext(n1,n2,n3))
       endif
-      if(ilwrtyp >= 3)  then
+      if(ilwrtyp == 3)  then
          allocate (radiate%lwup(n1,n2,n3))
          allocate (radiate%lwdn(n1,n2,n3))
       endif
-      if(iswrtyp >= 3)  then
+      if(iswrtyp == 3)  then
          allocate (radiate%swup(n1,n2,n3))
          allocate (radiate%swdn(n1,n2,n3))
       endif

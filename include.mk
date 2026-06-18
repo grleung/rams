@@ -20,7 +20,7 @@ MAKE=/usr/bin/make
 #############################################################################
 # Set your RAMS root path and version number.
 #############################################################################
-RAMS_ROOT=/home/smsaleeb/rams_git_dev
+RAMS_ROOT=/home/smsaleeb/rams_steve/RAMS
 RAMS_VERSION=6.3.04
 
 #############################################################################
@@ -37,14 +37,7 @@ HDZ_ZFP_ROOT=
 # Set root locations for parallel processing MPI software.
 # You can comment out MPI_ROOT for serial processing compile.
 #############################################################################
-#MPI_ROOT=/share/apps/openmpi-3.1.2/intel-2019
-MPI_ROOT=/share/apps/22.04/openmpi/4.1.5
-
-#############################################################################
-# RTE+RRTMGP requires netcdf
-#############################################################################
-#NETCDF_FORTRAN_ROOT=
-#NETCDF_C_ROOT=
+MPI_ROOT=/home/smsaleeb/software/mpich-3.3.2
 
 #############################################################################
 # Do not change these 2. They point from RAMS_ROOT to the source code.
@@ -142,16 +135,11 @@ LIBS=-L/usr/lib/x86_64-linux-gnu -lrt -lpthread -lsz -lz
 # (-fno-sign-zero) for not making zeros negative values
 # (-fcheck=bounds) check for array bounds issues
 # (-fcheck=all) all runtime checking
-F_COMP=gfortran
-F_OPTS1=-fallow-argument-mismatch -ffree-form -O1 
-F_OPTS2=-fallow-argument-mismatch -ffree-form -O2
-F_OPTS3=-fallow-argument-mismatch -ffree-form -O3
-#F_OPTS1=-fallow-argument-mismatch -ffree-form -O1 -fbacktrace
-#F_OPTS2=-fallow-argument-mismatch -ffree-form -O2 -fbacktrace
-#F_OPTS3=-fallow-argument-mismatch -ffree-form -O3 -fbacktrace
-#Use F_OPTS3 for RTE+RRTMGP. See Makefiles in src/version/radiate/rte-rrtmgp
-LOADER_OPTS=-ffree-form -O2
-LIBS=-L/usr/lib/x86_64-linux-gnu -lrt -lpthread -lz -lsz
+#F_COMP=/usr/bin/gfortran
+#F_OPTS1=-ffree-form -O1
+#F_OPTS2=-ffree-form -O2
+#LOADER_OPTS=-ffree-form -O2
+#LIBS=-L/usr/lib/x86_64-linux-gnu -lrt -lpthread -lz -lsz
 
 #############################################################################
 # C compiler choice and flags (gcc) and (mpicc) are most common

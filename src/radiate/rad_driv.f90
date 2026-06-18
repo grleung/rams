@@ -92,9 +92,11 @@ if (mod(time + .001,radfrq) .lt. dtlt .or. time .lt. 0.001) then
          ,radiate_g(ngrid)%cosz    (1,1)    &
          ,radiate_g(ngrid)%rlongup (1,1))
 
-   ! Using Harrington, BUGSRAD, or RTE+RRTMGP radiation
+   endif
 
-   elseif (iswrtyp .ge. 3 .or. ilwrtyp .ge. 3) then
+   ! Using Harrington radiation
+
+   if (iswrtyp .eq. 3 .or. ilwrtyp .eq. 3) then
 
       ! If first call for this node, initialize several quantities & Mclatchy
       ! sounding data.
@@ -105,42 +107,20 @@ if (mod(time + .001,radfrq) .lt. dtlt .or. time .lt. 0.001) then
             ,exptabc,ulim,npartob,npartg,ncog,ncb  &
             ,ocoef,bcoef,gcoef,gnu)
 
-         !Adele - this call to mclatchy only requires the last two values of zt 
-         !and the length of zt. The full profile of zt is unnecessary. As such,
-         !pass in the height array that defines the top of the known atmosphere.
-         !For most simulations, that will likely be zt, the prognostic height levels
-         !For horizontally homogeneous simulations, the input sounding may extend
-         !well beyond the model top. In this case, use the input sounding for 
-         !radiation calculations. Even in this case, more radiation levels may be
-         !necessary. This call to mclatchy will determine how many additional levels
-         !are needed.
-         if ((initial == 1 .or. initorig == 1) .and. hs(nsndg)>zt(mzp)) then
-            CALL mclatchy (1,nsndg  &
-               ,grid_g(ngrid)%glat       (1,1)  &
-               ,grid_g(ngrid)%rtgt       (1,1)  &
-               ,grid_g(ngrid)%topt       (1,1)  &
-               ,radiate_g(ngrid)%rlongup (1,1)  &
-               ,hs,hs,vctr1,vctr2,vctr3,vctr4,vctr5,vctr6,vctr7  &
-               ,vctr8,vctr9,vctr10,vctr11,vctr12 &
-               )
-         else
-            CALL mclatchy (1,mzp  &
-              ,grid_g(ngrid)%glat       (1,1)  &
-              ,grid_g(ngrid)%rtgt       (1,1)  &
-              ,grid_g(ngrid)%topt       (1,1)  &
-              ,radiate_g(ngrid)%rlongup (1,1)  &
-              ,zm,zt,vctr1,vctr2,vctr3,vctr4,vctr5,vctr6,vctr7  &
-              ,vctr8,vctr9,vctr10,vctr11,vctr12 &
-              )
-         endif
+         CALL mclatchy (1,mzp  &
+            ,grid_g(ngrid)%glat       (1,1)  &
+            ,grid_g(ngrid)%rtgt       (1,1)  &
+            ,grid_g(ngrid)%topt       (1,1)  &
+            ,radiate_g(ngrid)%rlongup (1,1)  &
+            ,zm,zt,vctr1,vctr2,vctr3,vctr4,vctr5,vctr6,vctr7  &
+            ,vctr8,vctr9,vctr10,vctr11,vctr12 &
+            )
+
          ncall = ncall + 1
       endif
 
       ! For any call, interpolate the mclatchy sounding data by latitude and
       ! season.
-      ! Adele - note that this call to mclatchy does not require any variables 
-      ! to be passed! No modifications then are necessary if we are using 
-      ! the input sounding for radiation
 
       CALL mclatchy (2,mzp  &
          ,grid_g(ngrid)%glat       (1,1)  &
@@ -207,6 +187,7 @@ if (mod(time + .001,radfrq) .lt. dtlt .or. time .lt. 0.001) then
             ,micro_g(ngrid)%abc2np     (1,1,1)  &
             ,micro_g(ngrid)%abc2mp     (1,1,1))
       endif
+
    endif
 
 endif
@@ -502,7 +483,7 @@ use micro_prm, only:iceprocs
 
 implicit none
 
-integer :: m1,m2,m3,ia,iz,ja,jz,mcat,i,j,k,kk,k0
+integer :: m1,m2,m3,ia,iz,ja,jz,mcat,i,j,k
 
 real :: cfmasi,cparmi,glg,glgm,picpi
 real, dimension(m2,m3) :: glat,rtgt,topt,cosz,albedt,rlongup,rlontop,rshort,rlong,aodt
@@ -855,14 +836,12 @@ use rconstants
 use rrad3
 use micphys
 use node_mod
-use ref_sounding, only:nzref
-use mem_grid, only:initial, initorig
 
 implicit none
 
 integer m1,maxnzp,mcat,ngrid
 integer :: iswrtyp,ilwrtyp
-integer i,j,k,kk,k0,nzr
+integer i,j,k
 integer, save :: ncall = 0,nradmax
 integer, save :: ngass(mg)=(/1, 1, 1/),ngast(mg)=(/1, 1, 1/)
 !     one can choose the gases of importance here,
@@ -892,12 +871,7 @@ real, external :: rslf
 
 if (ncall == 0) then
    ncall = 1
-   if (initial == 1 .or. initorig == 1) then
-      nrad = nzref - 1 + narad
-   else
-      nrad = m1 - 1 + narad
-   endif
-   nradmax = nrad
+   nradmax = maxnzp + namax
    allocate(zml  (nradmax) ,ztl  (nradmax) ,dzl  (nradmax) ,pl (nradmax)  &
            ,tl   (nradmax) ,dl   (nradmax) ,rl   (nradmax) ,o3l(nradmax)  &
            ,vp   (nradmax) ,flxus(nradmax) ,flxds(nradmax) ,tg (nradmax)  &
@@ -910,9 +884,18 @@ if (ncall == 0) then
    tg=0.
 endif
 
-CALL prep_atm_profiles(nrad,zml,ztl,pl,tl,dl,rl,o3l,dzl, &
-                       m1,zm,zt,dn0,rv, &
-                       glat,rtgt,topt,rlongup) 
+nrad = m1 - 1 + narad
+
+! rlongup used to set tl(1): stephan*tl^4=rlongup
+ CALL mclatchy (3,m1  &
+   ,glat,rtgt,topt,rlongup  &
+   ,zm,zt,press,tair,dn0,rv,zml,ztl,pl,tl,dl,rl,o3l,dzl &
+   )
+
+! calculate non-dimensional pressure
+do k=1,m1
+  exner(k) = (press(k)*p00i)**rocp
+enddo
 
 ! zero out scratch arrays
  CALL azero (nrad*mg,u)
@@ -948,6 +931,21 @@ endif
  CALL path_lengths (nrad,u,rl,dzl,dl,o3l,vp,pl,eps)
 
 do k = 1,nrad
+   if (rl(k) <   0. .or.  &
+       dl(k) <   0. .or.  &
+       pl(k) <   0. .or.  &
+      o3l(k) <   0.) then
+      print*, 'Negative value of density, vapor, pressure, or ozone'
+      print*, 'when calling Harrington radiation'
+      print*, 'at k,i,j = ',k,i+mi0(ngrid),j+mj0(ngrid)
+      print*, 'ngrid=',ngrid
+      print*, 'stopping model'
+      print*, 'rad: rl(k), dl(k), pl(k), o3l(k)'
+      print*, rv(k), dl(k), pl(k), o3l(k)
+      stop
+   endif
+enddo
+do k = 1,nrad
    if (tl(k) < 160.) then
       print*, 'Temperature too low when calling Harrington radiation' 
       print*, 'at k,i,j = ',k,i+mi0(ngrid),j+mj0(ngrid)
@@ -972,7 +970,6 @@ if (iswrtyp == 3 .and. cosz > 0.03) then
    rshort = flxds(1)
 
    do k = 2,m1-1
-      exner(k) = (press(k)*p00i)**rocp
       !divide by exner to get potential temp heating rate
       fthrdsw(k) = (flxds(k) - flxds(k-1) + flxus(k-1) - flxus(k)) &
             / (dl(k) * dzl(k) * cp * exner(k))
@@ -980,7 +977,6 @@ if (iswrtyp == 3 .and. cosz > 0.03) then
       swup(k) = flxus(k)
       swdn(k) = flxds(k)
     enddo
-
     !lower and upper boundary conditions on swup and swdn
     swup(1) = flxus(1)
     swup(m1) = flxus(nrad) ! use the top radiation value rather than m1 value
